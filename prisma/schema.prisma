@@ -1,0 +1,285 @@
+// Prisma schema for the Website Development Agency business application.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN // full access: team, billing, settings
+  MANAGER // clients, projects, invoices, proposals
+  MEMBER // assigned projects/tasks + own time entries
+}
+
+enum ClientStatus {
+  LEAD
+  ACTIVE
+  INACTIVE
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  REVIEW
+  ON_HOLD
+  COMPLETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(MEMBER)
+  title         String? // e.g. "Lead Developer"
+  avatarColor   String   @default("#6366f1")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ownedClients   Client[]         @relation("ClientOwner")
+  projectMembers ProjectMember[]
+  assignedTasks  Task[]           @relation("TaskAssignee")
+  timeEntries    TimeEntry[]
+  activities     Activity[]
+  proposalsMade  Proposal[]       @relation("ProposalOwner")
+  invoicesMade   Invoice[]        @relation("InvoiceOwner")
+}
+
+// ---------------------------------------------------------------------------
+// CRM
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String // primary contact name
+  company   String
+  email     String
+  phone     String?
+  address   String?
+  website   String?
+  notes     String?
+  status    ClientStatus @default(LEAD)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  ownerId String?
+  owner   User?   @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  projects  Project[]
+  proposals Proposal[]
+  invoices  Invoice[]
+}
+
+// ---------------------------------------------------------------------------
+// Projects & Tasks
+// ---------------------------------------------------------------------------
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  budget      Float         @default(0)
+  startDate   DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  members     ProjectMember[]
+  tasks       Task[]
+  timeEntries TimeEntry[]
+  invoices    Invoice[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  position    Int          @default(0)
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  timeEntries TimeEntry[]
+
+  @@index([projectId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Time tracking
+// ---------------------------------------------------------------------------
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  minutes   Int
+  note      String?
+  date      DateTime @default(now())
+  billable  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------
+// Proposals
+// ---------------------------------------------------------------------------
+
+model Proposal {
+  id         String         @id @default(cuid())
+  title      String
+  status     ProposalStatus @default(DRAFT)
+  amount     Float          @default(0)
+  content    String? // freeform scope-of-work text
+  validUntil DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("ProposalOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Invoicing
+// ---------------------------------------------------------------------------
+
+model Invoice {
+  id        String        @id @default(cuid())
+  number    String        @unique
+  status    InvoiceStatus @default(DRAFT)
+  issueDate DateTime      @default(now())
+  dueDate   DateTime
+  taxRate   Float         @default(0) // percent, e.g. 8.5
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  ownerId String?
+  owner   User?   @relation("InvoiceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  items    InvoiceItem[]
+  payments Payment[]
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  description String
+  quantity    Float  @default(1)
+  rate        Float  @default(0)
+  position    Int    @default(0)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  amount    Float
+  method    String   @default("Bank Transfer")
+  paidAt    DateTime @default(now())
+  reference String?
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Activity feed (dashboard)
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id        String   @id @default(cuid())
+  message   String
+  entity    String? // e.g. "project", "invoice"
+  entityId  String?
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}

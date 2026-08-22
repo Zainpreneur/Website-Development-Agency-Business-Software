@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: `.dark` on <html> (see ThemeScript/ThemeToggle)
+   with a `prefers-color-scheme` fallback baked into the token values below. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f8f9fb;
+  --foreground: #18181b;
+
+  --surface: #ffffff;
+  --surface-hover: #f4f4f6;
+  --border: #e4e4e8;
+  --muted: #71717a;
+  --muted-foreground: #52525b;
+
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-hover: #4338ca;
+
+  --ring: #4f46e5;
+
+  --sidebar: #14142b;
+  --sidebar-foreground: #d4d4e0;
+  --sidebar-active: #1f1f3d;
+  --sidebar-border: #23233f;
+
+  --danger: #dc2626;
+  --success: #16a34a;
+
+  --radius: 0.65rem;
+}
+
+.dark {
+  --background: #0b0b0f;
+  --foreground: #f4f4f5;
+
+  --surface: #131318;
+  --surface-hover: #1a1a22;
+  --border: #26262f;
+  --muted: #a1a1aa;
+  --muted-foreground: #d4d4d8;
+
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --primary-hover: #818cf8;
+
+  --ring: #818cf8;
+
+  --sidebar: #0a0a10;
+  --sidebar-foreground: #d4d4e0;
+  --sidebar-active: #16161f;
+  --sidebar-border: #1c1c26;
+
+  --danger: #f87171;
+  --success: #4ade80;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --radius-md: var(--radius);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+/* Small scrollbars for kanban columns etc. */
+.thin-scrollbar {
+  scrollbar-width: thin;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
